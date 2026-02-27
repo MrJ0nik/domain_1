@@ -5,7 +5,6 @@ const client = new DynamoDBClient({ region: process.env.AWS_REGION });
 const docClient = DynamoDBDocumentClient.from(client);
 
 export const handler = async (event) => {
-  // Handle API Gateway proxy integration
   let body = event;
   if (event.body) {
     try {

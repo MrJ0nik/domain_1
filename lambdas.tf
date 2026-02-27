@@ -1,28 +1,34 @@
 locals {
   lambdas = {
     get-all-authors = {
-      action = "dynamodb:Scan"
-      table  = aws_dynamodb_table.authors.arn
+      action     = "dynamodb:Scan"
+      table      = aws_dynamodb_table.authors.arn
+      table_name = aws_dynamodb_table.authors.name
     }
     get-all-courses = {
-      action = "dynamodb:Scan"
-      table  = aws_dynamodb_table.courses.arn
+      action     = "dynamodb:Scan"
+      table      = aws_dynamodb_table.courses.arn
+      table_name = aws_dynamodb_table.courses.name
     }
     get-course = {
-      action = "dynamodb:GetItem"
-      table  = aws_dynamodb_table.courses.arn
+      action     = "dynamodb:GetItem"
+      table      = aws_dynamodb_table.courses.arn
+      table_name = aws_dynamodb_table.courses.name
     }
     save-course = {
-      action = "dynamodb:PutItem"
-      table  = aws_dynamodb_table.courses.arn
+      action     = "dynamodb:PutItem"
+      table      = aws_dynamodb_table.courses.arn
+      table_name = aws_dynamodb_table.courses.name
     }
     update-course = {
-      action = "dynamodb:PutItem"
-      table  = aws_dynamodb_table.courses.arn
+      action     = "dynamodb:PutItem"
+      table      = aws_dynamodb_table.courses.arn
+      table_name = aws_dynamodb_table.courses.name
     }
     delete-course = {
-      action = "dynamodb:DeleteItem"
-      table  = aws_dynamodb_table.courses.arn
+      action     = "dynamodb:DeleteItem"
+      table      = aws_dynamodb_table.courses.arn
+      table_name = aws_dynamodb_table.courses.name
     }
   }
 }
@@ -84,11 +90,10 @@ resource "aws_iam_role_policy_attachment" "lambda_attachments" {
   role       = aws_iam_role.lambda_roles[each.key].name
   policy_arn = aws_iam_policy.lambda_policies[each.key].arn
 }
-
 data "archive_file" "lambda_zips" {
   for_each    = local.lambdas
   type        = "zip"
-  source_file = "${path.module}/src/${each.key}/index.js"
+  source_file = "${path.module}/src/${each.key}/index.mjs"
   output_path = "${path.module}/${each.key}.zip"
 }
 
@@ -98,6 +103,12 @@ resource "aws_lambda_function" "lambdas" {
   function_name    = module.lambda_labels[each.key].id
   role             = aws_iam_role.lambda_roles[each.key].arn
   handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  runtime          = "nodejs22.x"
   source_code_hash = data.archive_file.lambda_zips[each.key].output_base64sha256
+
+  environment {
+    variables = {
+      TABLE_NAME = each.value.table_name
+    }
+  }
 }
