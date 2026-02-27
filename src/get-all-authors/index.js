@@ -1,26 +1,22 @@
-const AWS = require("aws-sdk");
-const dynamodb = new AWS.DynamoDB({
-  region: "eu-central-1",
-  apiVersion: "2012-08-10",
-});
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
-exports.handler = (event, context, callback) => {
-  const params = {
-    TableName: "authors",
-  };
-  dynamodb.scan(params, (err, data) => {
-    if (err) {
-      console.log(err);
-      callback(err);
-    } else {
-      const authors = data.Items.map((item) => {
-        return {
-          id: item.id.S,
-          firstName: item.firstName.S,
-          lastName: item.lastName.S,
-        };
-      });
-      callback(null, authors);
-    }
-  });
+const client = new DynamoDBClient({ region: process.env.AWS_REGION });
+const docClient = DynamoDBDocumentClient.from(client);
+
+export const handler = async (event) => {
+  try {
+    const { Items = [] } = await docClient.send(
+      new ScanCommand({ TableName: process.env.TABLE_NAME }),
+    );
+
+    return Items.map(({ id, firstName, lastName }) => ({
+      id,
+      firstName,
+      lastName,
+    }));
+  } catch (err) {
+    console.error("Error fetching authors:", err);
+    throw err;
+  }
 };

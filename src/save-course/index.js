@@ -1,39 +1,46 @@
-const AWS = require("aws-sdk");
-const dynamodb = new AWS.DynamoDB({
-  region: "eu-central-1",
-  apiVersion: "2012-08-10",
-});
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
-const replaceAll = (str, find, replace) => {
-  return str.replace(new RegExp(find, "g"), replace);
-};
+const client = new DynamoDBClient({ region: process.env.AWS_REGION });
+const docClient = DynamoDBDocumentClient.from(client);
 
-exports.handler = (event, context, callback) => {
-  const id = replaceAll(event.title, " ", "-").toLowerCase();
-  const params = {
-    Item: {
-      id: { S: id },
-      title: { S: event.title },
-      watchHref: { S: `http://www.pluralsight.com/courses/${id}` },
-      authorId: { S: event.authorId },
-      length: { S: event.length },
-      category: { S: event.category },
-    },
-    TableName: "courses",
-  };
-  dynamodb.putItem(params, (err, data) => {
-    if (err) {
-      console.log(err);
-      callback(err);
-    } else {
-      callback(null, {
-        id: params.Item.id.S,
-        title: params.Item.title.S,
-        watchHref: params.Item.watchHref.S,
-        authorId: params.Item.authorId.S,
-        length: params.Item.length.S,
-        category: params.Item.category.S,
-      });
+export const handler = async (event) => {
+  // Handle API Gateway proxy integration where body is a JSON string
+  let body = event;
+  if (event.body) {
+    try {
+      body =
+        typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+    } catch (e) {
+      console.error("Error parsing event body:", e);
     }
-  });
+  }
+
+  if (!body.title) {
+    throw new Error("Missing required field: title");
+  }
+
+  const id = body.title.replace(/ /g, "-").toLowerCase();
+  const item = {
+    id,
+    title: body.title,
+    watchHref: `http://www.pluralsight.com/courses/${id}`,
+    authorId: body.authorId,
+    length: body.length,
+    category: body.category,
+  };
+
+  try {
+    await docClient.send(
+      new PutCommand({
+        TableName: process.env.TABLE_NAME,
+        Item: item,
+      }),
+    );
+
+    return item;
+  } catch (err) {
+    console.error("Error saving course:", err);
+    throw err;
+  }
 };

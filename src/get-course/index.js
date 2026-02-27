@@ -1,31 +1,45 @@
-const AWS = require("aws-sdk");
-const dynamodb = new AWS.DynamoDB({
-  region: "eu-central-1",
-  apiVersion: "2012-08-10",
-});
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
 
-exports.handler = (event, context, callback) => {
-  const params = {
-    Key: {
-      id: {
-        S: event.id,
-      },
-    },
-    TableName: "courses",
-  };
-  dynamodb.getItem(params, (err, data) => {
-    if (err) {
-      console.log(err);
-      callback(err);
-    } else {
-      callback(null, {
-        id: data.Item.id.S,
-        title: data.Item.title.S,
-        watchHref: data.Item.watchHref.S,
-        authorId: data.Item.authorId.S,
-        length: data.Item.length.S,
-        category: data.Item.category.S,
-      });
+const client = new DynamoDBClient({ region: process.env.AWS_REGION });
+const docClient = DynamoDBDocumentClient.from(client);
+
+export const handler = async (event) => {
+  // Handle API Gateway proxy integration where path parameters are used
+  let id = event.id;
+
+  if (event.pathParameters && event.pathParameters.id) {
+    id = event.pathParameters.id;
+  } else if (event.queryStringParameters && event.queryStringParameters.id) {
+    id = event.queryStringParameters.id;
+  }
+
+  if (!id) {
+    throw new Error("Missing required field: id");
+  }
+
+  try {
+    const { Item } = await docClient.send(
+      new GetCommand({
+        TableName: process.env.TABLE_NAME,
+        Key: { id: id },
+      }),
+    );
+
+    if (!Item) {
+      throw new Error("Course not found");
     }
-  });
+
+    return {
+      id: Item.id,
+      title: Item.title,
+      watchHref: Item.watchHref,
+      authorId: Item.authorId,
+      length: Item.length,
+      category: Item.category,
+    };
+  } catch (err) {
+    console.error("Error fetching course:", err);
+    throw err;
+  }
 };

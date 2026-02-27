@@ -1,34 +1,50 @@
-const AWS = require("aws-sdk");
-const dynamodb = new AWS.DynamoDB({
-  region: "eu-central-1",
-  apiVersion: "2012-08-10",
-});
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
-exports.handler = (event, context, callback) => {
-  const params = {
-    Item: {
-      id: { S: event.id },
-      title: { S: event.title },
-      watchHref: { S: event.watchHref },
-      authorId: { S: event.authorId },
-      length: { S: event.length },
-      category: { S: event.category },
-    },
-    TableName: "courses",
-  };
-  dynamodb.putItem(params, (err, data) => {
-    if (err) {
-      console.log(err);
-      callback(err);
-    } else {
-      callback(null, {
-        id: params.Item.id.S,
-        title: params.Item.title.S,
-        watchHref: params.Item.watchHref.S,
-        authorId: params.Item.authorId.S,
-        length: params.Item.length.S,
-        category: params.Item.category.S,
-      });
+const client = new DynamoDBClient({ region: process.env.AWS_REGION });
+const docClient = DynamoDBDocumentClient.from(client);
+
+export const handler = async (event) => {
+  // Handle API Gateway proxy integration
+  let body = event;
+  if (event.body) {
+    try {
+      body =
+        typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+    } catch (e) {
+      console.error("Error parsing event body:", e);
     }
-  });
+  }
+
+  let id = body.id;
+  if (event.pathParameters && event.pathParameters.id) {
+    id = event.pathParameters.id;
+  }
+
+  if (!id) {
+    throw new Error("Missing required field: id");
+  }
+
+  const item = {
+    id: id,
+    title: body.title,
+    watchHref: body.watchHref,
+    authorId: body.authorId,
+    length: body.length,
+    category: body.category,
+  };
+
+  try {
+    await docClient.send(
+      new PutCommand({
+        TableName: process.env.TABLE_NAME,
+        Item: item,
+      }),
+    );
+
+    return item;
+  } catch (err) {
+    console.error("Error updating course:", err);
+    throw err;
+  }
 };
