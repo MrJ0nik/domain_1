@@ -5,7 +5,6 @@ const client = new DynamoDBClient({ region: process.env.AWS_REGION });
 const docClient = DynamoDBDocumentClient.from(client);
 
 export const handler = async (event) => {
-  // Handle API Gateway proxy integration
   let id = event.id;
 
   if (event.pathParameters && event.pathParameters.id) {
@@ -23,7 +22,11 @@ export const handler = async (event) => {
   }
 
   if (!id) {
-    throw new Error("Missing required field: id");
+    return {
+      statusCode: 400,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ message: "Missing required field: id" }),
+    };
   }
 
   try {
@@ -33,9 +36,18 @@ export const handler = async (event) => {
         Key: { id: id },
       }),
     );
-    return { message: "Course deleted successfully" };
+
+    return {
+      statusCode: 200,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ message: "Course deleted successfully" }),
+    };
   } catch (err) {
     console.error("Error deleting course:", err);
-    throw err;
+    return {
+      statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ message: "Internal Server Error" }),
+    };
   }
 };

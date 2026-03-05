@@ -10,13 +10,23 @@ export const handler = async (event) => {
       new ScanCommand({ TableName: process.env.TABLE_NAME }),
     );
 
-    return Items.map(({ id, firstName, lastName }) => ({
+    const authors = Items.map(({ id, firstName, lastName }) => ({
       id,
       firstName,
       lastName,
     }));
+
+    return {
+      statusCode: 200,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify(authors),
+    };
   } catch (err) {
     console.error("Error fetching authors:", err);
-    throw err;
+    return {
+      statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ message: "Internal Server Error" }),
+    };
   }
 };

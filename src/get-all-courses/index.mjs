@@ -10,7 +10,7 @@ export const handler = async (event) => {
       new ScanCommand({ TableName: process.env.TABLE_NAME }),
     );
 
-    return Items.map(
+    const courses = Items.map(
       ({ id, title, watchHref, authorId, length, category }) => ({
         id,
         title,
@@ -20,8 +20,18 @@ export const handler = async (event) => {
         category,
       }),
     );
+
+    return {
+      statusCode: 200,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify(courses),
+    };
   } catch (err) {
     console.error("Error fetching courses:", err);
-    throw err;
+    return {
+      statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ message: "Internal Server Error" }),
+    };
   }
 };

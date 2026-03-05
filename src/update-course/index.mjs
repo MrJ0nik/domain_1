@@ -21,7 +21,11 @@ export const handler = async (event) => {
   }
 
   if (!id) {
-    throw new Error("Missing required field: id");
+    return {
+      statusCode: 400,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ message: "Missing required field: id" }),
+    };
   }
 
   const item = {
@@ -41,9 +45,17 @@ export const handler = async (event) => {
       }),
     );
 
-    return item;
+    return {
+      statusCode: 200,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify(item),
+    };
   } catch (err) {
     console.error("Error updating course:", err);
-    throw err;
+    return {
+      statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ message: "Internal Server Error" }),
+    };
   }
 };
